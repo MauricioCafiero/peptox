@@ -1,9 +1,22 @@
 # peptox
 
-A hemolysis model trained on PepBenchmark, a descriptor heuristic, and the
-evaluations that say what each of them can and cannot be used for.
+**Existing hemolysis models were not built for peptides like these. Here is
+what you can and cannot recover from them anyway.**
 
-**Short answer: neither predicts toxicity for peptides unlike the training
+Published hemolysis predictors are trained on antimicrobial peptides: cationic,
+amphipathic, and so are their negatives. A designed binder that is anionic,
+Gly/Ser-rich and not antimicrobial is outside that population, and the models
+do not say so — they return confident numbers. This repository measures how
+far that goes, and what is left once you stop trusting the point estimate.
+
+What is here: a descriptor model and a drift heuristic, both trained on the
+same public corpus as everyone else, plus the evaluations that bound what each
+can be used for. The contribution is not the model — on a fair benchmark it is
+at parity with published tools and no better. It is the measurement of where
+these models stop working, and a screening output that refuses to answer where
+they have.
+
+**Short answer: nothing here predicts toxicity for peptides unlike the training
 corpus.** The trained model is good — MCC +0.64, AUC 0.89 on similarity-aware
 splits — and it could not be applied to the design set it was built for, which
 is demonstrated rather than assumed. The heuristic is near-chance as a
@@ -93,8 +106,8 @@ near-duplicates. For peptides from this population the model is genuinely good.
 
 These are not head-to-head numbers — every row is a different dataset, and no
 shared benchmark exists — so the table is only good for one observation, which
-is the important one. **Performance tracks how the negatives were built, not
-how good the model is.** HemoPI-1's 0.93 comes from assumed negatives; the
+is the important one. **Reported performance tracks how the negatives were
+built, not how good the model is.** HemoPI-1's 0.93 comes from assumed negatives; the
 same architectures land at 0.51–0.56 once the negatives are peptides that were
 actually assayed and found not to lyse. That ~0.4 MCC gap is the easy-negatives
 artifact this project ran into twice on its own
@@ -115,6 +128,70 @@ Primary sources:
 Hewage 2020),
 [HemoPI/HemoPred comparison](https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-024-05983-4/tables/9),
 [HEPAD](https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-025-06254-6).
+
+### Tested directly: HemoPI2 on an off-distribution design set
+
+The argument above is about datasets. This is the measurement. **HemoPI2**
+(Rathore et al., *Commun Biol* 2025) is the current tool from the group that
+produced HemoPI — four models (Random Forest, ESM2-t6, and two hybrids adding
+MERCI motif matching) plus an HC50 regressor, installable with
+`pip install hemopi2`. It was run on 21 unpublished designs and, as a control,
+on the ten literature peptides in `validation.csv`.
+
+**It works on the references.** Melittin hemolytic with a predicted HC50 of
+1.3 µM (the measured value is ~1–2 µM), LL-37 and pexiganan hemolytic,
+buforin-II, glucagon, GLP-1 and poly-E correctly not. It misses indolicidin
+(0.27). Worth recording: it calls **insulin-A non-hemolytic (0.50), which is
+right and which the model in this repository gets wrong** — a corpus label
+this project inherited and HemoPI2 did not. This is a competent, working tool
+in its domain.
+
+**On the designs it inverts the base rate.**
+
+| | designs (n=21) | references (n=10) |
+|---|---:|---:|
+| called hemolytic (Hybrid2) | **13 (62%)** | 3 (30%) |
+| called hemolytic (HC50 regressor) | **19 (90%)** | 6 (60%) |
+| mean Hybrid2 score | **0.62** | 0.42 |
+| scored exactly **1.00** | **7** | 0 |
+| RF and ESM agree on the call | **11/21 (52%)** | 7/10 |
+| median predicted HC50 | 64 µM | 67 µM |
+
+The reference set contains melittin, LL-37 and pexiganan. The design set is
+anionic Gly/Ser-rich binders with a median net charge of −1.0. HemoPI2 calls
+the designs hemolytic at **twice the rate** of a set built around the most
+lytic peptides known, and seven of them receive a score of exactly 1.00 —
+maximal confidence. Those seven include two near-poly-alanine 33-mers with
+zero net charge and no basic residues. The MERCI motif component is what
+saturates them: low-complexity Gly/Ala-rich sequence hits a "hemolytic motif"
+and the hybrid score pins to 1.
+
+The regressor tells the same story a different way. Every design lands between
+50 and 84 µM at the interquartile range, against 1.3 µM for melittin — the
+predictions collapse onto the training mean, which is what a model does when
+the input carries no signal it recognises. And the two independent model
+families inside the same tool agree on only **52% of the designs** against
+70% of the references: near coin-flip internal consistency, with no warning
+in the output.
+
+None of this is a defect in HemoPI2 for the job it was built for. It is what
+happens when any of these tools is handed a peptide from a population it has
+never seen, and **none of them reports that condition.** That is the gap this
+repository is about.
+
+Reproduce it on your own set (HemoPI2 shells out to a bare `python3`, so its
+environment has to be on PATH or two of the four models fail):
+
+```sh
+python -m venv hemo-env && ./hemo-env/bin/pip install hemopi2 torch
+PATH="$PWD/hemo-env/bin:$PATH" hemopi2_classification \
+    -i yours.fasta -o out.csv -m 4 -wd run
+PATH="$PWD/hemo-env/bin:$PATH" hemopi2_regression -i yours.fasta -o hc50.csv -wd run
+```
+
+[HemoPI2 paper](https://doi.org/10.1038/s42003-025-07615-w) ·
+[code](https://github.com/raghavagps/HemoPI2) ·
+[pip](https://pypi.org/project/hemopi2)
 
 **The heuristic's failure was the rule, not the features.** A GBM on the *same
 six descriptors* scores +0.457 where the hand-tuned rule scores +0.044 — ten
@@ -550,6 +627,11 @@ Given that the label definition is undocumented, inconsistent at the boundary
 (220 of 838 positives have an HC50 above the lowest negative's) and contains at
 least one entry as questionable as insulin, a narrow band should be read as
 "consistent with the corpus", never as "true".
+
+HemoPI2, trained on different data, calls insulin-A non-hemolytic at 0.50 —
+[it gets this one right where this repository does not](#tested-directly-hemopi2-on-an-off-distribution-design-set).
+The corpus is the error, and nothing inside a model can see past its own
+training labels.
 
 ## How the two shipped checks were built
 
