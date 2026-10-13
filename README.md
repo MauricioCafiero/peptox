@@ -38,7 +38,9 @@ descriptor model from `data/` on each run rather than carrying a pickle that
 can drift from the data beside it.
 
 The corpus is fetched, not vendored: the upstream release states no licence,
-so redistributing it here would not be appropriate. See
+so redistributing it here would not be appropriate. `fetch_data.py` checks
+every file against a recorded SHA-256 — the versions every number below was
+measured on — and fails loudly if upstream has changed them. See
 [Training data](#training-data).
 
 How both checks were fitted, what was and was not tuned, and how well their
@@ -77,6 +79,42 @@ both random and MMseqs2 splits (5 seeds each). Mean ± sd test MCC:
 
 The random→MMseqs2 drop is small (+0.700 → +0.642), so this is not memorised
 near-duplicates. For peptides from this population the model is genuinely good.
+
+### How that compares to published hemolysis predictors
+
+| tool | reported MCC | what the negatives are |
+|---|---:|---|
+| HemoPI-1 | 0.93 | random/assumed non-hemolytic |
+| HAPPENN (own cross-validation) | 0.71 | curated |
+| HemoPred, HemoPI-2 / -3 | 0.51–0.56 | measured non-hemolytic |
+| HemoPI_SVM, HemoPred (HEPAD independent sets) | 0.51–0.53 | measured non-hemolytic |
+| **this repository, descriptors (18), MMseqs2** | **+0.553** | measured non-hemolytic |
+| **this repository, ESM-2 (640), MMseqs2** | **+0.642** | measured non-hemolytic |
+
+These are not head-to-head numbers — every row is a different dataset, and no
+shared benchmark exists — so the table is only good for one observation, which
+is the important one. **Performance tracks how the negatives were built, not
+how good the model is.** HemoPI-1's 0.93 comes from assumed negatives; the
+same architectures land at 0.51–0.56 once the negatives are peptides that were
+actually assayed and found not to lyse. That ~0.4 MCC gap is the easy-negatives
+artifact this project ran into twice on its own
+([the in-sample validation](#the-in-sample-validation-that-started-this), and
+the ToxinPred-style framing rejected at the outset).
+
+So the model here is at parity with the published tools on the hard version of
+the task, and nothing special. **That is not the contribution.** What is:
+the measurement of where these models stop working, in
+[extrapolation](#descriptor-model-vs-esm-2-the-extrapolation-test),
+[prediction stability](#the-instability-that-test-uncovered) and
+[calibration](#2-the-ranking-model-inferpy). None of the tools above reports
+an off-distribution sensitivity, a prediction interval, or a calibration curve,
+and a designed peptide unlike any AMP is exactly where all three matter.
+
+Primary sources:
+[HAPPENN](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7331684/) (Timmons &
+Hewage 2020),
+[HemoPI/HemoPred comparison](https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-024-05983-4/tables/9),
+[HEPAD](https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-025-06254-6).
 
 **The heuristic's failure was the rule, not the features.** A GBM on the *same
 six descriptors* scores +0.457 where the hand-tuned rule scores +0.044 — ten
