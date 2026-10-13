@@ -9,7 +9,7 @@ reproduce. What it does reliably is measure distance from AMP space: it fires on
 generated sequences, never to clear a peptide. See README.md.
 
     python peptox.py validation.csv         # table over a manifest
-    python peptox.py --seq RGERKEKSKLIFII   # one sequence
+    python peptox.py --seq GIGAVLKVLTTGLPAL  # one sequence
 """
 
 import argparse
