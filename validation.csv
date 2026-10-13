@@ -1,0 +1,11 @@
+peptide,kind,known,sequence
+melittin,bee venom,strongly hemolytic,GIGAVLKVLTTGLPALISWIKRKRQQ
+pexiganan,AMP (MSI-78),hemolytic,GIGKFLKKAKKFGKAFVKILKK
+indolicidin,bovine AMP,hemolytic,ILPWKWPWWPWRR
+LL-37,human cathelicidin,hemolytic at high conc,LLGDFFRKSKEKIGKEFKRIVQRIKDFLRNLVPRTES
+magainin-2,frog AMP,weakly hemolytic,GIGKFLHSAKKFGKAFVGEIMNS
+buforin-II,AMP (non-lytic mechanism),non-hemolytic,TRSSRAGLQFPVGRVHRLLRK
+insulin-A,human hormone,non-hemolytic,GIVEQCCTSICSLYQLENYCN
+glucagon,human hormone,non-hemolytic,HSQGTFTSDYSKYLDSRRAQDFVQWLMNT
+GLP-1,human hormone,non-hemolytic,HAEGTFTSDVSSYLEGQAAKEFIAWLVKGR
+polyE,synthetic anionic,non-hemolytic,EEEEEEEEEEEEEEEEEEEE

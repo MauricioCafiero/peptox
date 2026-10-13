@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+
+# Fetched from HuggingFace by fetch_data.py, not redistributed here:
+# the upstream release states no licence. See README, "Training data".
+data/
+
+# Private design sets and their outputs. The manifest this project was built
+# for is unpublished; keep any local one out of the repository.
+designs.csv
+designs*.csv
+results*.csv
+predictions*.csv

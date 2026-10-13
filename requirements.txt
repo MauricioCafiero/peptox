@@ -1,0 +1,13 @@
+# Everything in this directory except archive/ runs on these two.
+#   python -m venv .venv && .venv/bin/pip install -r requirements.txt
+# peptox.py and evaluate.py need neither -- they are standard library only.
+numpy==2.5.4
+scikit-learn==1.9.1
+
+# Pulled in transitively, recorded so the environment is reproducible:
+#   cloudpickle==3.1.2  joblib==1.6.0  narwhals==2.27.1
+#   scipy==1.18.1  threadpoolctl==3.7.0
+
+# NOT installed here. archive/predict.py additionally needs torch and
+# transformers (~750 MB) to embed new sequences with ESM-2. Install them only
+# if you revive that path; see archive/README.md for why you probably should not.
