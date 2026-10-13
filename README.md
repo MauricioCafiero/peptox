@@ -270,7 +270,7 @@ Easy negatives made a rule that separates AMPs from non-AMPs look like a rule
 that separates hemolytic from non-hemolytic. Supplying the negatives that matter
 — non-hemolytic AMPs — removed the apparent skill entirely.
 
-Both wrong turns in this directory have the same shape: a test set that asked an
+Both wrong turns recorded here have the same shape: a test set that asked an
 easier question than the one being claimed.
 
 ## Result on the design set
