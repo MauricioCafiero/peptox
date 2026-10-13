@@ -20,9 +20,7 @@ they have.
 corpus.** The trained model is good — MCC +0.64, AUC 0.89 on similarity-aware
 splits — and it could not be applied to the design set it was built for, which
 is demonstrated rather than assumed. The heuristic is near-chance as a
-hemolysis predictor but works as a drift detector. Details below, including two
-wrong turns kept on the record because the way they were wrong is the useful
-part.
+hemolysis predictor but works as a drift detector.
 
 This project was built to screen an unpublished set of 21 designed peptides.
 **Those sequences are not in this repository** and the results reported for
@@ -110,9 +108,9 @@ is the important one. **Reported performance tracks how the negatives were
 built, not how good the model is.** HemoPI-1's 0.93 comes from assumed negatives; the
 same architectures land at 0.51–0.56 once the negatives are peptides that were
 actually assayed and found not to lyse. That ~0.4 MCC gap is the easy-negatives
-artifact this project ran into twice on its own
-([the in-sample validation](#the-in-sample-validation-that-started-this), and
-the ToxinPred-style framing rejected at the outset).
+artifact, and it is the single largest source of inflated numbers in this
+literature. The same effect is visible inside this repository: see
+[why `validation.csv` is not evidence](#why-validationcsv-is-not-evidence).
 
 So the model here is at parity with the published tools on the hard version of
 the task, and nothing special. **That is not the contribution.** What is:
@@ -193,12 +191,14 @@ PATH="$PWD/hemo-env/bin:$PATH" hemopi2_regression -i yours.fasta -o hc50.csv -wd
 [code](https://github.com/raghavagps/HemoPI2) ·
 [pip](https://pypi.org/project/hemopi2)
 
-**The heuristic's failure was the rule, not the features.** A GBM on the *same
-six descriptors* scores +0.457 where the hand-tuned rule scores +0.044 — ten
-times better from identical inputs. Two hard thresholds ANDed together throw
-away almost everything six continuous features contain. The mechanistic story
-justified the features; it did not justify the functional form, and that
-distinction was not checked before shipping it.
+### Functional form matters more than the features
+
+A GBM on the *same six descriptors* scores +0.457 where a hand-set two-term
+rule on those descriptors scores +0.044 — ten times better from identical
+inputs. Two hard thresholds ANDed together discard almost everything six
+continuous features contain. A mechanistic argument can justify a feature set
+without justifying the functional form applied to it; the two need separate
+evidence.
 
 ## Why the ESM-2 model cannot be applied off-family
 
@@ -231,12 +231,12 @@ classes are AMPs, charge carries almost no signal, so the model never learned a
 mechanistic axis. It learned to recognise AMP families. Given a sequence from no
 family it has seen, it has nothing to fall back on and returns noise.
 
-Both scoring paths now compute corr(P, amphipathicity) on every batch and warn
-if it is not positive (`infer.py`, and `archive/predict.py` which refuses
+Both scoring paths compute corr(P, amphipathicity) on every batch and warn if
+it is not positive (`infer.py`, and `archive/predict.py`, which refuses
 outright). That check is a tripwire for this failure mode, not a guarantee
 against it.
 
-### The applicability tiers were also wrong
+### Why sequence-similarity tiers do not bound this error
 
 `domain.py` bins 2,160 held-out MMseqs2 predictions by k-mer containment to
 their training fold:
@@ -258,10 +258,10 @@ from the same corpus; it is far from its training *fold*, not far from the
 never sampled. A within-family distance cannot bound out-of-family error, and
 k-mer containment does not distinguish the two cases.
 
-(Note also that accuracy per bin is confounded: the low-similarity bins have base
-rate 0.13 and the high ones 0.66, so raw accuracy appears U-shaped while MCC
-falls monotonically. The first version of `domain.py` reported accuracy only and
-read as "no degradation at all".)
+Accuracy per bin is also confounded by base rate: the low-similarity bins sit
+at 0.13 positive and the high ones at 0.66, so raw accuracy appears U-shaped
+while MCC falls monotonically. Reporting accuracy alone here would read as "no
+degradation at all". `domain.py` reports both.
 
 ## Descriptor model vs ESM-2: the extrapolation test
 
@@ -374,26 +374,31 @@ percentile** of corpus charge. For "has a generation stage wandered somewhere
 unintended", it is reliable, because that is a statement about a distribution
 rather than a prediction of a biological outcome.
 
-### The in-sample validation that started this
+### Why `validation.csv` is not evidence
 
-`validation.csv` holds ten canonical references; the rule gets 5/5 hemolytic and
-4/5 non-hemolytic. **That number is meaningless** and is kept as a record. It is
-in-sample — the thresholds were fit to it, and a bulk-hydrophobicity criterion
-was dropped precisely because indolicidin and LL-37 failed on it. Worse, the
-negatives were insulin, glucagon, GLP-1 and poly-E: hormones and a homopolymer.
-Easy negatives made a rule that separates AMPs from non-AMPs look like a rule
-that separates hemolytic from non-hemolytic. Supplying the negatives that matter
-— non-hemolytic AMPs — removed the apparent skill entirely.
+`validation.csv` ships as an example manifest and as the in-distribution
+control for the band check. It is **not** a benchmark, and the rule's 5/5 and
+4/5 on it should not be quoted. Two reasons, both structural:
 
-Both wrong turns recorded here have the same shape: a test set that asked an
-easier question than the one being claimed.
+- It is in-sample. The rule's thresholds were set against these ten peptides,
+  including dropping a bulk-hydrophobicity criterion that indolicidin and LL-37
+  failed.
+- Its negatives are insulin, glucagon, GLP-1 and poly-E — hormones and a
+  homopolymer. Easy negatives make a rule that separates AMPs from non-AMPs
+  look like a rule that separates hemolytic from non-hemolytic. Replacing them
+  with the negatives that matter, non-hemolytic AMPs, removes the apparent
+  skill entirely (MCC +0.093, table above).
+
+This is the same easy-negatives effect that separates HemoPI-1's reported 0.93
+from HemoPI-2/-3's 0.51–0.56. **A test set that asks an easier question than
+the one being claimed will report skill that does not exist.**
 
 ## Result on the design set
 
 The 21 designs are 25–34 residues, 18 of them anionic-to-neutral and Gly/Ser-rich
 (median net charge −1.0). The sequences are unpublished and not included; the
-findings are reported here because the failure modes they exposed are the point
-of this repository. The heuristic flags 3:
+aggregate findings are reported because they are what the evaluations above are
+measured against. The heuristic flags 3:
 
 | design | source stage | q | ⟨µH⟩ | corpus q percentile |
 |---|---|---:|---:|---:|
@@ -508,13 +513,13 @@ The slice that matters for this project — length 25–40 — is 1,134 peptides
 46.6% positive, so the design length range is well represented even though the
 design *composition* range is not.
 
-## Short peptides, and what testing for them exposed
+## Short peptides in the corpus
 
 The corpus contains dipeptides, and 109 peptides are <= 5 residues at 35.8%
-labelled hemolytic. An earlier pass over this corpus dismissed them as noise on
-no evidence beyond implausibility. `shortpep.py` tests the claim. Two concerns were
-conflated and only one is checkable: whether the **labels** are wrong cannot be
-verified from here, but whether the **features** are comparable can — `muH` is
+labelled hemolytic. It is tempting to drop them as noise; `shortpep.py` tests
+whether that is justified. Two concerns are involved and only one is checkable:
+whether the **labels** are wrong cannot be verified from the shipped data, but
+whether the **features** are comparable can — `muH` is
 computed over `min(11, len)` residues, so the column does not mean the same
 thing at length 2 as at length 33, regardless of the labels.
 
@@ -531,36 +536,35 @@ increasing length floors, tested only on corpus peptides of length >= 20:
 **They do no measurable harm.** Every floor lands inside one standard deviation
 of every other. There is no case for removing them, and they stay in.
 
-### The instability that test uncovered
+### Prediction stability off-distribution
 
-The same perturbations move the *designs* enormously. Dropping only the 109
+The same perturbations move *off-distribution* predictions enormously. Dropping only the 109
 shortest peptides — 2.5% of rows — shifts design probabilities by up to 0.376
 and flips two across 0.5. At floor 15, `anionic-3` goes **0.63 to 0.10**.
 
 Over 16 perturbed fits (4 length floors + 12 bootstrap resamples) the median
 10th-90th percentile band on a design is **0.41 wide**. A point estimate from a
 single fit is not meaningful at the level of an individual design, however many
-decimal places it is printed to — an earlier version of this analysis reported
-exactly that and should not have.
+decimal places it is printed to.
 
 This is not a fact about short peptides. It is what being off-distribution
 costs: the designs sit where the training data is thin, so the fitted surface
 there is decided by a handful of points and changes when they do. Corpus-level
-accuracy is unaffected, which is exactly why the earlier evaluations did not
-catch it.
+accuracy is unaffected throughout, which is why aggregate metrics never reveal
+this and a per-peptide stability check is needed to see it.
 
 `infer.py` therefore reports a band over 12 bootstrap resamples instead of a
 number, and gives a verdict only where the whole band falls on one side of 0.5.
-On the 21 designs that leaves **1 elevated, 9 low, 11 unresolved** — an honest
-accounting that a single fit disguised as 7 confident positives and 14
-negatives. `helix-1` survives as the one elevated call (band 0.62–0.99), and
+On the 21 designs that leaves **1 elevated, 9 low, 11 unresolved**, where a
+single fit reports 7 positives and 14 negatives with no hedge at all. `helix-1` survives as the one elevated call (band 0.62–0.99), and
 the tightly-bounded low calls (the cationic designs at 0.01–0.06) are the other
 place the model is actually saying something.
 
 ### A caution about the data release: `nc-hemolytic` is internally inconsistent
 
-Downloaded while investigating whether the short entries are stripped
-lipopeptides. Its columns do not describe the same molecules:
+`nc-hemolytic` is the non-canonical set from the same release, carrying HELM,
+BILN and SMILES columns alongside FASTA. Those columns do not describe the same
+molecules:
 
 | check | agreement |
 |---|---:|
@@ -635,9 +639,9 @@ training labels.
 
 ## How the two shipped checks were built
 
-Neither was tuned against its reported evaluation. The gap between "fitted" and
-"measured" is where this project went wrong twice, so the provenance is spelled
-out.
+Neither was tuned against the evaluation it is reported on. Because that
+distinction is where most inflated numbers come from, the provenance of every
+threshold and hyperparameter is given explicitly below.
 
 ### 1. The drift check (`peptox.py`)
 
@@ -647,16 +651,16 @@ Not trained — a two-term rule, `net charge >= +2.0 AND max <uH> >= 0.35`.
 for helical AMPs, chosen to err toward flagging. They were then adjusted once,
 in-sample, against `validation.csv`: a third criterion (bulk hydrophobicity)
 was dropped because indolicidin and LL-37 failed on it. **That makes the
-thresholds fitted, not calibrated**, and the `validation.csv` scores worthless
-as evidence. Everything in `evaluate.py` ran afterwards with the thresholds
-frozen, which is why those numbers (MCC +0.093) count and the earlier ones do
-not.
+thresholds fitted, not calibrated**, and it is why
+[`validation.csv` is not evidence](#why-validationcsv-is-not-evidence).
+`evaluate.py` runs with the thresholds frozen against the full 4,306-peptide
+corpus, so MCC +0.093 is the number that counts.
 
 **Known miscalibration.** The 0.35 moment cutoff sits near the **25th
 percentile** of the 4,306-peptide corpus, whose median is 0.54. It is a line
 drawn relative to this project's designs, not to real AMPs — fine for detecting
-drift, wrong as an absolute statement about amphipathicity. This is why the rule
-flags the esm2 variants that the model scores at 0.05.
+drift, wrong as an absolute statement about amphipathicity. This is why the
+rule flags the two cationic designs that the ranking model scores at 0.05.
 
 ### 2. The ranking model (`infer.py`)
 
@@ -679,14 +683,13 @@ Tuning buys nothing in-family and +0.013 MCC extrapolating, on a single split
 with no interval — inside noise. It also *raises* variance (±0.042 against
 ±0.025), because selecting on a ~430-peptide validation fold is noisy enough to
 pick a worse configuration about as often as a better one. The defaults ship,
-now because they were tested rather than because they were never questioned.
+tested.
 
-**A protocol confound found on the way.** The first version of `sweep.py` used
-`early_stopping=True`, which carves 15% out of train for an internal stop. That
-alone cost **~0.13 MCC** on the extrapolation split (+0.342 against +0.474) —
-far more than anything in the grid, and it initially made tuning look actively
-harmful. Protocol choices dominated hyperparameters here, which is worth
-knowing before anyone sweeps harder.
+**Protocol dominates hyperparameters here.** Setting `early_stopping=True`,
+which carves 15% out of train for an internal stop, costs **~0.13 MCC** on the
+extrapolation split (+0.342 against +0.474) — far more than the spread across
+all 108 configurations in the grid. Anyone sweeping harder should fix the
+protocol first; it is the larger term.
 
 **What it is trained on.** All 4,306 peptides in `data/hemolytic/all.csv`,
 refit on every run — see [Training data](#training-data) for what that corpus
@@ -765,13 +768,13 @@ order of how much they buy:
 | `peptox.py` | the heuristic; `screen(seq)` returns descriptors and verdict |
 | `evaluate.py` | heuristic held-out evaluation and ablations; no tuning |
 | `train.py` | model comparison across feature sets and split types |
-| `domain.py` | accuracy vs sequence distance; sets (and limits) the tiers |
+| `domain.py` | accuracy vs sequence distance, and why it does not bound error |
 | `features.py` | 18 mechanistic descriptors, helix and sheet periodicity |
 | `extrapolate.py` | descriptors vs ESM-2 off-distribution; confusion matrices |
 | `sweep.py` | 108-config hyperparameter grid, selected on `valid` |
 | `shortpep.py` | length-floor ablation and design-prediction stability |
 | `requirements.txt` | numpy + scikit-learn; that is all the kept code needs |
-| `archive/` | the retired ESM-2 path, with why — see `archive/README.md` |
+| `archive/` | the ESM-2 scoring path — see `archive/README.md` |
 | `validation.csv` | 10 canonical references; example manifest and band control |
 
 Not in the repository:
@@ -784,9 +787,10 @@ Not in the repository:
 | `data/nc-hemolytic/` | non-canonical set — **columns inconsistent, do not use** |
 | `designs.csv` | your own manifest, if you have one; `.gitignore`d by default |
 
-The ESM-2 scoring path is in `archive/`. It is the better model *in-family*
-(MCC +0.642 vs +0.553) and the wrong one here; `archive/README.md` has the
-evidence and the embedding convention, which is non-obvious and worth keeping.
+The ESM-2 scoring path is kept in `archive/` rather than deleted: it is the
+better model *in-family* (MCC +0.642 vs +0.553) and the right choice for
+AMP-like input, and `archive/README.md` records when to prefer it plus the
+embedding convention needed to reproduce the corpus vectors exactly.
 
 Data from [PepBenchmark](https://github.com/ZGCI-AI4S-Pep/PepBenchmark)
 (Zhang et al., ICLR 2026) via

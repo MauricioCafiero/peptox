@@ -25,10 +25,10 @@ import features
 
 ROOT = "data/hemolytic"
 
-# max_iter is swept rather than delegated to early stopping. An earlier version
-# of this script used early_stopping=True, which carves 15% out of train for an
-# internal stop and cost ~0.13 MCC on the extrapolation split against a fixed
-# 300 iterations -- a protocol difference large enough to swamp the grid.
+# max_iter is swept rather than delegated to early stopping. Setting
+# early_stopping=True carves 15% out of train for an internal stop and costs
+# ~0.13 MCC on the extrapolation split against a fixed 300 iterations -- a
+# protocol difference larger than the spread across this entire grid.
 GRID = dict(
     learning_rate=[0.03, 0.08, 0.15],
     max_leaf_nodes=[15, 31, 63],

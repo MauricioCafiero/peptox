@@ -11,3 +11,8 @@ designs.csv
 designs*.csv
 results*.csv
 predictions*.csv
+
+# Internal records: measured results and development notes. Kept out of the
+# public repo because they carry real design names and project history.
+results.md
+dev_notes.md

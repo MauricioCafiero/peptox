@@ -1,7 +1,8 @@
 # archive — the ESM-2 inference path
 
-Retired. Kept because the evidence against it is the most useful result this
-project produced, and because the embedding code is correct and non-obvious.
+Not used by `infer.py`. Kept because it is the better model on AMP-like input,
+and because its embedding convention is non-obvious and has to be matched by
+anything re-embedding against the shipped corpus vectors.
 
 ## What is here
 
@@ -9,7 +10,7 @@ project produced, and because the embedding code is correct and non-obvious.
 |---|---|
 | `predict.py` | scores peptides with a GBM on ESM-2 150M embeddings |
 
-## Why it was retired
+## Why `infer.py` does not use it
 
 The model itself is good: **MCC +0.642 on MMseqs2 splits**, the best in-family
 result obtained here, beating the 18-descriptor model's +0.553. The problem is

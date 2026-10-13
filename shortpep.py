@@ -1,7 +1,7 @@
 """Do the short peptides in the corpus harm predictions at design lengths?
 
-An earlier version of this analysis dismissed them as noise without testing
-it. Two separate worries are involved:
+It is tempting to drop them as label noise. This tests whether that is
+justified. Two separate worries are involved:
 
   labels   a dipeptide labelled hemolytic may be a mis-transcribed record.
            Unverifiable from here.
